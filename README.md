@@ -160,17 +160,32 @@ flutter build apk --release
 - **[Frontend README](frontend/README.md)**: Frontend-specific documentation
 - **[Infrastructure README](infrastructure/README.md)**: Docker Compose setup
 
+## Development Stories
+
+### ✅ STORY-001: Infrastructure & OWID Ingestion
+**Status**: Completed
+
+- [x] Docker Compose setup (PostgreSQL + pgvector, Redis)
+- [x] Alembic migrations for `bloom_cards` table
+- [x] OWID connector fetching CO2, life expectancy, child mortality data
+- [x] REST API endpoints for ingestion
+- [x] Automated acceptance tests
+
+**See**: [STORY-001.md](STORY-001.md) for detailed implementation notes
+
 ## Roadmap
 
 ### Phase 1: The "Seed" (MVP)
-- [ ] Ingest OWID (Global Stats) and RSS-Bridge (General News)
+- [x] Ingest OWID (Global Stats) ✅ STORY-001
 - [ ] Implement basic "Finite Feed" (20 items/day)
 - [ ] Simple keyword-based filtering
+- [ ] RSS-Bridge integration (General News)
 
 ### Phase 2: The "Sprout" (Alpha)
 - [ ] Integrate OpenAlex (Science) and Neocities (Indie Web)
 - [ ] Deploy Perspective Engine v1 (BERT bias detection)
 - [ ] Implement "Robin Hood" masonry layout
+- [ ] Flutter frontend with upward scrolling
 
 ### Phase 3: The "Bloom" (Beta)
 - [ ] Full "Blindspot" analysis (Clustering)

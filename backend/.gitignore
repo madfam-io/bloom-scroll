@@ -55,12 +55,13 @@ logs/
 *.db
 *.sqlite3
 
-# ML Models (download during setup)
-models/
+# ML Model binaries (download during setup)
+# Note: app/models/ contains SQLAlchemy models (keep in git)
 *.pt
 *.pth
 *.bin
 *.onnx
+ml_models/
 
 # macOS
 .DS_Store

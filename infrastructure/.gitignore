@@ -12,12 +12,14 @@ logs/
 
 # Backups
 backups/
-*.sql
+backup*.sql
+dump*.sql
 *.dump
 
 # RSS-Bridge config
 rss-bridge-config/
 
-# Init scripts (may contain sensitive data)
-init-scripts/*.sql
-!init-scripts/README.md
+# Init scripts (sensitive data only)
+# Note: System init scripts like extension setup are kept in git
+init-scripts/*_sensitive.sql
+init-scripts/*_secret.sql
