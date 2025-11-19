@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.bloom_card import BloomCard
 from app.schemas.bloom_card import OWIDDataPayload
+from app.analysis.processor import get_nlp_processor
 
 logger = logging.getLogger(__name__)
 
@@ -155,13 +156,23 @@ class OWIDConnector:
 
         dataset_info = self.DATASETS[dataset_key]
 
+        # Generate text for embedding
+        title = f"{dataset_info['indicator']} - {entity}"
+        summary = f"Historical data on {dataset_info['indicator'].lower()} for {entity} over the past {years_back} years."
+        embedding_text = f"{title}. {summary}"
+
+        # Generate embedding
+        nlp = get_nlp_processor()
+        embedding = nlp.generate_embedding(embedding_text)
+
         # Create BloomCard
         card = BloomCard(
             source_type="OWID",
-            title=f"{dataset_info['indicator']} - {entity}",
-            summary=f"Historical data on {dataset_info['indicator'].lower()} for {entity} over the past {years_back} years.",
+            title=title,
+            summary=summary,
             original_url=f"https://ourworldindata.org/grapher/{dataset_key.replace('_', '-')}",
             data_payload=data_payload,
+            embedding=embedding,
         )
 
         # Add to session

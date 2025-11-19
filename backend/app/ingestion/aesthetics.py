@@ -9,6 +9,7 @@ from PIL import Image
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.bloom_card import BloomCard
+from app.analysis.processor import get_nlp_processor
 
 logger = logging.getLogger(__name__)
 
@@ -195,13 +196,20 @@ class AestheticsConnector:
                     "arena_block_id": block.get("id"),
                 }
 
+                # Generate embedding
+                summary_text = description[:200] if description else f"Visual from {channel_key} aesthetic"
+                embedding_text = f"{title}. {summary_text}"
+                nlp = get_nlp_processor()
+                embedding = nlp.generate_embedding(embedding_text)
+
                 # Create BloomCard
                 card = BloomCard(
                     source_type="AESTHETIC",
                     title=title,
-                    summary=description[:200] if description else f"Visual from {channel_key} aesthetic",
+                    summary=summary_text,
                     original_url=source_url,
                     data_payload=data_payload,
+                    embedding=embedding,
                 )
 
                 session.add(card)
