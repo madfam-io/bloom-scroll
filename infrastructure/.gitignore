@@ -1,0 +1,23 @@
+# Environment files
+.env
+.env.local
+
+# Data directories (if using local bind mounts)
+data/
+volumes/
+
+# Logs
+logs/
+*.log
+
+# Backups
+backups/
+*.sql
+*.dump
+
+# RSS-Bridge config
+rss-bridge-config/
+
+# Init scripts (may contain sensitive data)
+init-scripts/*.sql
+!init-scripts/README.md
