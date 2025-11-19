@@ -1,7 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'screens/feed_screen.dart';
 
 void main() {
-  runApp(const BloomScrollApp());
+  runApp(
+    // Wrap app in ProviderScope for Riverpod
+    const ProviderScope(
+      child: BloomScrollApp(),
+    ),
+  );
 }
 
 class BloomScrollApp extends StatelessWidget {
@@ -11,6 +18,7 @@ class BloomScrollApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Bloom Scroll',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
           seedColor: Colors.green,
@@ -18,6 +26,12 @@ class BloomScrollApp extends StatelessWidget {
         ),
         useMaterial3: true,
         fontFamily: 'Inter',
+        cardTheme: CardTheme(
+          elevation: 2,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
       ),
       darkTheme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
@@ -27,55 +41,7 @@ class BloomScrollApp extends StatelessWidget {
         useMaterial3: true,
         fontFamily: 'Inter',
       ),
-      home: const HomeScreen(),
-    );
-  }
-}
-
-class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('🌱 Bloom Scroll'),
-        centerTitle: true,
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(
-              Icons.energy_savings_leaf,
-              size: 64,
-              color: Colors.green,
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'Welcome to Bloom Scroll',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-            const SizedBox(height: 16),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 32.0),
-              child: Text(
-                'A perspective-driven content aggregator',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey),
-              ),
-            ),
-            const SizedBox(height: 48),
-            FilledButton.icon(
-              onPressed: () {
-                // TODO: Navigate to feed
-              },
-              icon: const Icon(Icons.arrow_upward),
-              label: const Text('Start Scrolling Up'),
-            ),
-          ],
-        ),
-      ),
+      home: const FeedScreen(),
     );
   }
 }

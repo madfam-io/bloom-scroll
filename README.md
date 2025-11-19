@@ -173,11 +173,25 @@ flutter build apk --release
 
 **See**: [STORY-001.md](STORY-001.md) for detailed implementation notes
 
+### ✅ STORY-002: Flutter Scaffold & Charting
+**Status**: Completed
+
+- [x] Flutter app with Riverpod state management
+- [x] Upward scrolling (reverse: true) implementation
+- [x] OWID card widget with fl_chart interactive charts
+- [x] API service with Dio (iOS/Android/device support)
+- [x] Touch interaction with tooltips
+- [x] Tufte-style minimalist chart design
+
+**See**: [STORY-002.md](STORY-002.md) for detailed implementation notes
+
 ## Roadmap
 
 ### Phase 1: The "Seed" (MVP)
 - [x] Ingest OWID (Global Stats) ✅ STORY-001
-- [ ] Implement basic "Finite Feed" (20 items/day)
+- [x] Flutter app with native chart rendering ✅ STORY-002
+- [x] Upward scrolling UX ✅ STORY-002
+- [ ] Masonry grid layout
 - [ ] Simple keyword-based filtering
 - [ ] RSS-Bridge integration (General News)
 
