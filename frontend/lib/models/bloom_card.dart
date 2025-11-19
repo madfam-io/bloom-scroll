@@ -198,28 +198,99 @@ class AestheticData {
   }
 }
 
+/// Pagination metadata for finite feed (STORY-007)
+class PaginationMeta {
+  final int page;
+  final int limit;
+  final bool hasNextPage;
+  final int totalReadToday;
+  final int dailyLimit;
+
+  PaginationMeta({
+    required this.page,
+    required this.limit,
+    required this.hasNextPage,
+    required this.totalReadToday,
+    required this.dailyLimit,
+  });
+
+  factory PaginationMeta.fromJson(Map<String, dynamic> json) {
+    return PaginationMeta(
+      page: json['page'] as int,
+      limit: json['limit'] as int,
+      hasNextPage: json['has_next_page'] as bool,
+      totalReadToday: json['total_read_today'] as int,
+      dailyLimit: json['daily_limit'] as int,
+    );
+  }
+
+  /// Progress as percentage (0.0 to 1.0)
+  double get progress => totalReadToday / dailyLimit;
+
+  /// Remaining cards before limit
+  int get remaining => dailyLimit - totalReadToday;
+}
+
+/// Completion object when daily limit reached (STORY-007)
+class CompletionData {
+  final String type; // "COMPLETION"
+  final String message; // "The Garden is Watered."
+  final String subtitle;
+  final Map<String, dynamic> stats;
+
+  CompletionData({
+    required this.type,
+    required this.message,
+    required this.subtitle,
+    required this.stats,
+  });
+
+  factory CompletionData.fromJson(Map<String, dynamic> json) {
+    return CompletionData(
+      type: json['type'] as String,
+      message: json['message'] as String,
+      subtitle: json['subtitle'] as String,
+      stats: json['stats'] as Map<String, dynamic>,
+    );
+  }
+
+  /// Get read count from stats
+  int get readCount => stats['read_count'] as int? ?? 0;
+
+  /// Get daily limit from stats
+  int get dailyLimit => stats['daily_limit'] as int? ?? 20;
+}
+
 /// Feed response from API
 class FeedResponse {
-  final String message;
-  final String sessionId;
   final List<BloomCard> cards;
-  final int count;
+  final PaginationMeta pagination;
+  final CompletionData? completion; // Present when daily limit reached
+  final bool serendipityEnabled;
 
   FeedResponse({
-    required this.message,
-    required this.sessionId,
     required this.cards,
-    required this.count,
+    required this.pagination,
+    this.completion,
+    required this.serendipityEnabled,
   });
 
   factory FeedResponse.fromJson(Map<String, dynamic> json) {
     return FeedResponse(
-      message: json['message'] as String,
-      sessionId: json['session_id'] as String,
       cards: (json['cards'] as List<dynamic>)
           .map((e) => BloomCard.fromJson(e as Map<String, dynamic>))
           .toList(),
-      count: json['count'] as int,
+      pagination: PaginationMeta.fromJson(json['pagination'] as Map<String, dynamic>),
+      completion: json['completion'] != null
+          ? CompletionData.fromJson(json['completion'] as Map<String, dynamic>)
+          : null,
+      serendipityEnabled: json['serendipity_enabled'] as bool? ?? false,
     );
   }
+
+  /// Check if feed is complete (reached daily limit)
+  bool get isComplete => completion != null;
+
+  /// Check if more pages available
+  bool get hasNextPage => pagination.hasNextPage;
 }

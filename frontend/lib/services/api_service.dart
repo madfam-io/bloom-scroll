@@ -34,10 +34,29 @@ class ApiService {
     }
   }
 
-  /// Fetch the bloom feed
-  Future<FeedResponse> getFeed() async {
+  /// Fetch the bloom feed with pagination (STORY-007)
+  Future<FeedResponse> getFeed({
+    int page = 1,
+    int readCount = 0,
+    int limit = 10,
+    List<String>? userContext,
+  }) async {
     try {
-      final response = await _dio.get('/feed');
+      final queryParams = {
+        'page': page,
+        'read_count': readCount,
+        'limit': limit,
+      };
+
+      // Add user context if provided (for serendipity scoring)
+      if (userContext != null && userContext.isNotEmpty) {
+        queryParams['user_context'] = userContext;
+      }
+
+      final response = await _dio.get(
+        '/feed',
+        queryParameters: queryParams,
+      );
       return FeedResponse.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {
       debugPrint('Error fetching feed: ${e.message}');

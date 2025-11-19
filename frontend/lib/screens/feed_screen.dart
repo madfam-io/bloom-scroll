@@ -5,102 +5,166 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import '../models/bloom_card.dart';
-import '../providers/api_provider.dart';
+import '../providers/feed_controller.dart';
 import '../widgets/owid_card.dart';
 import '../widgets/aesthetic_card.dart';
+import '../widgets/completion_widget.dart';
+import '../theme/design_tokens.dart';
 
-class FeedScreen extends ConsumerWidget {
+class FeedScreen extends ConsumerStatefulWidget {
   const FeedScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final feedAsync = ref.watch(feedProvider);
+  ConsumerState<FeedScreen> createState() => _FeedScreenState();
+}
+
+class _FeedScreenState extends ConsumerState<FeedScreen> {
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    // Load next page when scrolled to top (in reverse mode)
+    if (_scrollController.position.pixels <= _scrollController.position.minScrollExtent + 200) {
+      final feedState = ref.read(feedControllerProvider);
+      if (!feedState.isLoading && feedState.hasNextPage && !feedState.isComplete) {
+        ref.read(feedControllerProvider.notifier).loadNextPage();
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final feedState = ref.watch(feedControllerProvider);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('🌱 Bloom Scroll'),
         centerTitle: true,
         elevation: 0,
+        backgroundColor: BloomColors.primaryBg,
+        foregroundColor: BloomColors.inkPrimary,
         actions: [
+          // Progress indicator
+          if (feedState.pagination != null && !feedState.isComplete)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: Center(
+                child: Text(
+                  '${feedState.pagination!.totalReadToday}/${feedState.pagination!.dailyLimit}',
+                  style: BloomTypography.labelMedium.copyWith(
+                    color: BloomColors.inkSecondary,
+                  ),
+                ),
+              ),
+            ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () {
-              ref.invalidate(feedProvider);
+              ref.read(feedControllerProvider.notifier).refresh();
             },
             tooltip: 'Refresh feed',
           ),
         ],
       ),
-      body: feedAsync.when(
-        data: (feedResponse) => _buildFeed(context, feedResponse),
-        loading: () => const Center(
-          child: CircularProgressIndicator(),
-        ),
-        error: (error, stackTrace) => _buildError(context, error, ref),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          // Scroll to top (which is bottom in reverse mode)
-        },
-        icon: const Icon(Icons.arrow_downward),
-        label: const Text('Plant a Seed'),
-        tooltip: 'Scroll to newest content',
-      ),
+      body: _buildBody(context, feedState),
     );
   }
 
-  Widget _buildFeed(BuildContext context, FeedResponse feedResponse) {
-    if (feedResponse.cards.isEmpty) {
+  Widget _buildBody(BuildContext context, FeedState feedState) {
+    // Loading state (initial load)
+    if (feedState.isLoading && feedState.cards.isEmpty) {
+      return const Center(
+        child: CircularProgressIndicator(
+          color: BloomColors.growthGreen,
+        ),
+      );
+    }
+
+    // Error state
+    if (feedState.error != null && feedState.cards.isEmpty) {
+      return _buildError(context, feedState.error!);
+    }
+
+    // Empty state
+    if (feedState.cards.isEmpty && !feedState.isLoading) {
       return _buildEmptyState(context);
     }
 
+    // Feed content
+    return _buildFeed(context, feedState);
+  }
+
+  Widget _buildFeed(BuildContext context, FeedState feedState) {
     return Column(
       children: [
-        // Info banner
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          color: Colors.green.shade50,
-          child: Row(
-            children: [
-              Icon(Icons.info_outline, size: 16, color: Colors.green.shade700),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  '${feedResponse.count} cards • Scroll UP to see history',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.green.shade700,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ],
+        // Progress bar
+        if (feedState.pagination != null && !feedState.isComplete)
+          LinearProgressIndicator(
+            value: feedState.pagination!.progress,
+            backgroundColor: BloomColors.surfaceBg,
+            valueColor: AlwaysStoppedAnimation<Color>(BloomColors.growthGreen),
+            minHeight: 2,
           ),
-        ),
 
         // The upward scrolling masonry grid
         Expanded(
           child: CustomScrollView(
+            controller: _scrollController,
             // CRITICAL: reverse: true makes index 0 appear at the bottom
             reverse: true,
             physics: const BouncingScrollPhysics(),
             slivers: [
-              // End marker at top
-              SliverToBoxAdapter(
-                child: _buildEndMarker(context),
-              ),
+              // Completion widget at top (if reached limit)
+              if (feedState.isComplete && feedState.completion != null)
+                SliverToBoxAdapter(
+                  child: CompletionWidget(
+                    completion: feedState.completion!,
+                  ),
+                )
+              else
+                // End marker at top (if more pages available)
+                SliverToBoxAdapter(
+                  child: _buildEndMarker(context, feedState),
+                ),
 
               // Masonry grid of cards
-              SliverMasonryGrid.count(
-                crossAxisCount: 2,
-                mainAxisSpacing: 8,
-                crossAxisSpacing: 8,
-                childCount: feedResponse.cards.length,
-                itemBuilder: (context, index) {
-                  return _buildCardForIndex(context, feedResponse.cards, index);
-                },
+              SliverPadding(
+                padding: const EdgeInsets.all(BloomSpacing.screenPadding),
+                sliver: SliverMasonryGrid.count(
+                  crossAxisCount: 2,
+                  mainAxisSpacing: BloomSpacing.md,
+                  crossAxisSpacing: BloomSpacing.md,
+                  childCount: feedState.cards.length,
+                  itemBuilder: (context, index) {
+                    return _buildCardForIndex(context, feedState.cards, index);
+                  },
+                ),
               ),
+
+              // Loading indicator when loading more
+              if (feedState.isLoading && feedState.cards.isNotEmpty)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.all(BloomSpacing.lg),
+                    child: Center(
+                      child: CircularProgressIndicator(
+                        color: BloomColors.growthGreen,
+                      ),
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
@@ -135,65 +199,98 @@ class FeedScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildEndMarker(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.all(24),
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.green.shade50,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.green.shade200, width: 2),
-      ),
-      child: Column(
-        children: [
-          Icon(
-            Icons.check_circle_outline,
-            size: 48,
-            color: Colors.green.shade600,
+  Widget _buildEndMarker(BuildContext context, FeedState feedState) {
+    if (!feedState.hasNextPage && !feedState.isComplete) {
+      return Container(
+        margin: const EdgeInsets.all(BloomSpacing.lg),
+        padding: const EdgeInsets.all(BloomSpacing.xl),
+        decoration: BoxDecoration(
+          color: BloomColors.primaryBg,
+          borderRadius: BloomSpacing.cardBorderRadius,
+          border: Border.all(
+            color: BloomColors.inkTertiary,
+            width: BloomSpacing.borderWidth,
           ),
-          const SizedBox(height: 12),
-          Text(
-            'You\'ve reached the end! 🌸',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: Colors.green.shade700,
+        ),
+        child: Column(
+          children: [
+            Icon(
+              Icons.check_circle_outline,
+              size: 48,
+              color: BloomColors.growthGreen,
+            ),
+            const SizedBox(height: BloomSpacing.md),
+            Text(
+              'You\'ve reached the end! 🌸',
+              style: BloomTypography.h3.copyWith(
+                color: BloomColors.growthGreen,
+              ),
+            ),
+            const SizedBox(height: BloomSpacing.sm),
+            Text(
+              'No infinite scroll here. Time for a break!',
+              style: BloomTypography.bodyMedium.copyWith(
+                color: BloomColors.inkSecondary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Loading more indicator
+    if (feedState.hasNextPage) {
+      return Padding(
+        padding: const EdgeInsets.all(BloomSpacing.lg),
+        child: Center(
+          child: Text(
+            'Scroll up for more blooms...',
+            style: BloomTypography.caption.copyWith(
+              color: BloomColors.inkSecondary,
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            'No infinite scroll here. Time for a break!',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey.shade600,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
+        ),
+      );
+    }
+
+    return const SizedBox.shrink();
   }
 
   Widget _buildGenericCard(BuildContext context, BloomCard card) {
     return Card(
       margin: const EdgeInsets.all(4),
+      color: BloomColors.primaryBg,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BloomSpacing.cardBorderRadius,
+        side: BorderSide(
+          color: BloomColors.inkTertiary,
+          width: BloomSpacing.borderWidth,
+        ),
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(BloomSpacing.md),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               card.title,
-              style: Theme.of(context).textTheme.titleMedium,
+              style: BloomTypography.h4,
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: BloomSpacing.xs),
             Chip(
               label: Text(card.sourceType),
+              backgroundColor: BloomColors.surfaceBg,
+              labelStyle: BloomTypography.caption,
               visualDensity: VisualDensity.compact,
             ),
             if (card.summary != null) ...[
-              const SizedBox(height: 8),
-              Text(card.summary!),
+              const SizedBox(height: BloomSpacing.sm),
+              Text(
+                card.summary!,
+                style: BloomTypography.bodyMedium,
+              ),
             ],
           ],
         ),
@@ -209,62 +306,68 @@ class FeedScreen extends ConsumerWidget {
           Icon(
             Icons.energy_savings_leaf,
             size: 64,
-            color: Colors.grey.shade400,
+            color: BloomColors.inkTertiary,
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: BloomSpacing.md),
           Text(
             'No cards in the feed yet',
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  color: Colors.grey.shade600,
-                ),
+            style: BloomTypography.h3.copyWith(
+              color: BloomColors.inkSecondary,
+            ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: BloomSpacing.sm),
           Text(
             'Ingest some data from the backend',
-            style: TextStyle(color: Colors.grey.shade500),
+            style: BloomTypography.bodyMedium.copyWith(
+              color: BloomColors.inkTertiary,
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildError(BuildContext context, Object error, WidgetRef ref) {
+  Widget _buildError(BuildContext context, String error) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(BloomSpacing.xl),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
               Icons.error_outline,
               size: 64,
-              color: Colors.red.shade400,
+              color: BloomColors.bloomRed,
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: BloomSpacing.md),
             Text(
               'Failed to load feed',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    color: Colors.red.shade700,
-                  ),
+              style: BloomTypography.h3.copyWith(
+                color: BloomColors.bloomRed,
+              ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: BloomSpacing.sm),
             Text(
-              error.toString(),
-              style: TextStyle(color: Colors.grey.shade600),
+              error,
+              style: BloomTypography.bodyMedium.copyWith(
+                color: BloomColors.inkSecondary,
+              ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: BloomSpacing.lg),
             FilledButton.icon(
               onPressed: () {
-                ref.invalidate(feedProvider);
+                ref.read(feedControllerProvider.notifier).refresh();
               },
               icon: const Icon(Icons.refresh),
               label: const Text('Retry'),
+              style: FilledButton.styleFrom(
+                backgroundColor: BloomColors.growthGreen,
+              ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: BloomSpacing.sm),
             TextButton(
               onPressed: () {
-                // Show connection settings dialog
                 _showConnectionDialog(context);
               },
               child: const Text('Check connection settings'),
@@ -289,18 +392,23 @@ class FeedScreen extends ConsumerWidget {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(8),
+                color: BloomColors.surfaceBg,
+                borderRadius: BloomSpacing.cardBorderRadius,
               ),
-              child: const Text(
+              child: Text(
                 'cd backend\n./run_dev.sh',
-                style: TextStyle(fontFamily: 'monospace'),
+                style: BloomTypography.bodyMedium.copyWith(
+                  fontFamily: 'monospace',
+                ),
               ),
             ),
             const SizedBox(height: 12),
-            const Text('iOS Simulator: http://localhost:8000'),
-            const Text('Android Emulator: http://10.0.2.2:8000'),
-            const Text('Physical Device: http://<your-ip>:8000'),
+            Text(
+              'iOS Simulator: http://localhost:8000\n'
+              'Android Emulator: http://10.0.2.2:8000\n'
+              'Physical Device: http://<your-ip>:8000',
+              style: BloomTypography.bodySmall,
+            ),
           ],
         ),
         actions: [
