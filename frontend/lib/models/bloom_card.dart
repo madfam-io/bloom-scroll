@@ -117,17 +117,40 @@ class BloomCard {
   });
 
   factory BloomCard.fromJson(Map<String, dynamic> json) {
+    try {
+      return BloomCard(
+        id: json['id'] as String? ?? 'unknown',
+        sourceType: json['source_type'] as String? ?? 'UNKNOWN',
+        title: json['title'] as String? ?? 'Untitled',
+        summary: json['summary'] as String?,
+        originalUrl: json['original_url'] as String? ?? '',
+        dataPayload: json['data_payload'] as Map<String, dynamic>? ?? {},
+        meta: json['meta'] != null
+            ? PerspectiveMeta.fromJson(json['meta'] as Map<String, dynamic>)
+            : null,
+        createdAt: json['created_at'] != null
+            ? DateTime.parse(json['created_at'] as String)
+            : DateTime.now(),
+      );
+    } catch (e) {
+      debugPrint('⚠️ Error parsing BloomCard from JSON: $e');
+      debugPrint('   JSON: $json');
+      // Return error card instead of throwing
+      return BloomCard.errorCard('Failed to parse card: $e');
+    }
+  }
+
+  /// Create an error card when parsing fails
+  static BloomCard errorCard(String error) {
     return BloomCard(
-      id: json['id'] as String,
-      sourceType: json['source_type'] as String,
-      title: json['title'] as String,
-      summary: json['summary'] as String?,
-      originalUrl: json['original_url'] as String,
-      dataPayload: json['data_payload'] as Map<String, dynamic>,
-      meta: json['meta'] != null
-          ? PerspectiveMeta.fromJson(json['meta'] as Map<String, dynamic>)
-          : null,
-      createdAt: DateTime.parse(json['created_at'] as String),
+      id: 'error-${DateTime.now().millisecondsSinceEpoch}',
+      sourceType: 'ERROR',
+      title: 'Error Loading Card',
+      summary: error,
+      originalUrl: '',
+      dataPayload: {'error': error},
+      meta: null,
+      createdAt: DateTime.now(),
     );
   }
 
@@ -276,16 +299,47 @@ class FeedResponse {
   });
 
   factory FeedResponse.fromJson(Map<String, dynamic> json) {
-    return FeedResponse(
-      cards: (json['cards'] as List<dynamic>)
-          .map((e) => BloomCard.fromJson(e as Map<String, dynamic>))
-          .toList(),
-      pagination: PaginationMeta.fromJson(json['pagination'] as Map<String, dynamic>),
-      completion: json['completion'] != null
-          ? CompletionData.fromJson(json['completion'] as Map<String, dynamic>)
-          : null,
-      serendipityEnabled: json['serendipity_enabled'] as bool? ?? false,
-    );
+    try {
+      // Parse cards, filtering out any errors
+      final cardsList = (json['cards'] as List<dynamic>?) ?? [];
+      final cards = cardsList
+          .map((e) {
+            try {
+              return BloomCard.fromJson(e as Map<String, dynamic>);
+            } catch (err) {
+              debugPrint('⚠️ Skipping malformed card: $err');
+              return null;
+            }
+          })
+          .whereType<BloomCard>() // Filter out nulls
+          .where((card) => card.sourceType != 'ERROR') // Filter out error cards
+          .toList();
+
+      return FeedResponse(
+        cards: cards,
+        pagination: PaginationMeta.fromJson(
+          json['pagination'] as Map<String, dynamic>? ?? {},
+        ),
+        completion: json['completion'] != null
+            ? CompletionData.fromJson(json['completion'] as Map<String, dynamic>)
+            : null,
+        serendipityEnabled: json['serendipity_enabled'] as bool? ?? false,
+      );
+    } catch (e) {
+      debugPrint('❌ Error parsing FeedResponse: $e');
+      // Return empty response instead of throwing
+      return FeedResponse(
+        cards: [],
+        pagination: PaginationMeta(
+          page: 1,
+          limit: 10,
+          hasNextPage: false,
+          totalReadToday: 0,
+          dailyLimit: 20,
+        ),
+        serendipityEnabled: false,
+      );
+    }
   }
 
   /// Check if feed is complete (reached daily limit)

@@ -6,6 +6,54 @@ import 'package:flutter/foundation.dart';
 import '../models/bloom_card.dart';
 import 'api_config.dart';
 
+/// Retry interceptor with exponential backoff
+class RetryInterceptor extends Interceptor {
+  final Dio dio;
+  final int maxRetries;
+
+  RetryInterceptor({
+    required this.dio,
+    this.maxRetries = 3,
+  });
+
+  @override
+  void onError(DioException err, ErrorInterceptorHandler handler) async {
+    // Only retry on network errors or timeouts
+    if (err.type == DioExceptionType.connectionTimeout ||
+        err.type == DioExceptionType.receiveTimeout ||
+        err.type == DioExceptionType.sendTimeout ||
+        err.type == DioExceptionType.connectionError) {
+
+      final retryCount = err.requestOptions.extra['retry_count'] as int? ?? 0;
+
+      if (retryCount < maxRetries) {
+        // Exponential backoff: 1s, 2s, 4s
+        final delaySeconds = (1 << retryCount);
+        debugPrint('🔄 Retry attempt ${retryCount + 1}/$maxRetries after ${delaySeconds}s...');
+
+        await Future.delayed(Duration(seconds: delaySeconds));
+
+        // Increment retry count
+        err.requestOptions.extra['retry_count'] = retryCount + 1;
+
+        try {
+          // Retry the request
+          final response = await dio.fetch(err.requestOptions);
+          return handler.resolve(response);
+        } catch (e) {
+          // If retry fails, continue to next retry or fail
+          if (e is DioException) {
+            return onError(e, handler);
+          }
+        }
+      }
+    }
+
+    // If max retries reached or non-retryable error, pass to handler
+    super.onError(err, handler);
+  }
+}
+
 class ApiService {
   late final Dio _dio;
 
@@ -22,6 +70,10 @@ class ApiService {
       ),
     );
 
+    // Add retry interceptor (must be first to catch errors)
+    _dio.interceptors.add(RetryInterceptor(dio: _dio, maxRetries: 3));
+
+    // Add logging (after retry to see final result)
     if (ApiConfig.enableLogging && kDebugMode) {
       _dio.interceptors.add(
         LogInterceptor(
@@ -59,8 +111,32 @@ class ApiService {
       );
       return FeedResponse.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {
-      debugPrint('Error fetching feed: ${e.message}');
-      rethrow;
+      debugPrint('❌ Error fetching feed: ${e.message}');
+      debugPrint('   Type: ${e.type}');
+      debugPrint('   Status: ${e.response?.statusCode}');
+
+      // Provide user-friendly error messages
+      String userMessage;
+      switch (e.type) {
+        case DioExceptionType.connectionTimeout:
+        case DioExceptionType.sendTimeout:
+        case DioExceptionType.receiveTimeout:
+          userMessage = 'Request timed out. Please check your connection.';
+          break;
+        case DioExceptionType.connectionError:
+          userMessage = 'Cannot connect to server. Please check your network.';
+          break;
+        case DioExceptionType.badResponse:
+          userMessage = 'Server error (${e.response?.statusCode}). Please try again.';
+          break;
+        default:
+          userMessage = 'Failed to load feed. Please try again.';
+      }
+
+      throw Exception(userMessage);
+    } catch (e) {
+      debugPrint('❌ Unexpected error: $e');
+      throw Exception('An unexpected error occurred. Please try again.');
     }
   }
 
