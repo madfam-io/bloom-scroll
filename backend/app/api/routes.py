@@ -17,6 +17,10 @@ router = APIRouter()
 router.include_router(ingestion.router)
 router.include_router(interactions.router)
 
+# STORY-007: The Finite Feed
+# Hard-coded daily limit to prevent infinite scrolling
+DAILY_LIMIT = 20
+
 
 @router.get("/feed")
 async def get_feed(
@@ -24,11 +28,18 @@ async def get_feed(
         None,
         description="IDs of recently viewed cards (for serendipity scoring)"
     ),
-    limit: int = Query(20, ge=1, le=50, description="Number of cards to return"),
+    page: int = Query(1, ge=1, description="Page number (1-indexed)"),
+    read_count: int = Query(0, ge=0, description="Number of cards already read today"),
+    limit: int = Query(10, ge=1, le=20, description="Cards per page (max 20)"),
     db: AsyncSession = Depends(get_db),
 ) -> Dict[str, Any]:
     """
-    Generate a bloom feed session with serendipity scoring.
+    Generate a bloom feed session with serendipity scoring and finite pagination.
+
+    STORY-007: The Finite Feed
+    - Daily limit of 20 cards to prevent infinite scrolling
+    - Returns completion object when limit reached
+    - Pagination enforces "The End" as the product
 
     Returns a finite feed optimized for:
     - High serendipity score (avoids echo chambers)
@@ -41,12 +52,42 @@ async def get_feed(
 
     Args:
         user_context: Optional list of recently viewed card IDs
-        limit: Number of cards to return (default: 20, max: 50)
+        page: Page number (1-indexed)
+        read_count: Number of cards already read today (for limit enforcement)
+        limit: Cards per page (default: 10, max: 20)
         db: Database session
 
     Returns:
-        Feed response with cards and metadata
+        Feed response with cards, pagination metadata, and optional completion object
     """
+    # Enforce daily limit
+    remaining_cards = DAILY_LIMIT - read_count
+
+    # If already at or over limit, return completion immediately
+    if remaining_cards <= 0:
+        return {
+            "cards": [],
+            "pagination": {
+                "page": page,
+                "limit": limit,
+                "has_next_page": False,
+                "total_read_today": read_count,
+                "daily_limit": DAILY_LIMIT,
+            },
+            "completion": {
+                "type": "COMPLETION",
+                "message": "The Garden is Watered.",
+                "subtitle": "You've reached today's limit. Return tomorrow for fresh blooms.",
+                "stats": {
+                    "read_count": read_count,
+                    "daily_limit": DAILY_LIMIT,
+                },
+            },
+        }
+
+    # Adjust limit to not exceed daily cap
+    effective_limit = min(limit, remaining_cards)
+
     # Use Bloom Algorithm for serendipity scoring
     bloom = BloomAlgorithm(
         min_distance=0.3,  # Minimum distance to avoid echo chamber
@@ -56,7 +97,7 @@ async def get_feed(
     cards = await bloom.generate_feed(
         session=db,
         user_context_ids=user_context,
-        limit=limit,
+        limit=effective_limit,
     )
 
     # Calculate context vector for reason tag generation
@@ -71,13 +112,35 @@ async def get_feed(
         reason_tag = bloom.calculate_reason_tag(card, context_vector)
         cards_data.append(card.to_dict(include_meta=True, reason_tag=reason_tag))
 
-    return {
-        "message": "Feed generated with serendipity scoring" if user_context else "Feed generated (no context)",
-        "session_id": "placeholder",
+    # Calculate new read count
+    new_read_count = read_count + len(cards_data)
+    has_next_page = new_read_count < DAILY_LIMIT
+
+    response: Dict[str, Any] = {
         "cards": cards_data,
-        "count": len(cards_data),
+        "pagination": {
+            "page": page,
+            "limit": effective_limit,
+            "has_next_page": has_next_page,
+            "total_read_today": new_read_count,
+            "daily_limit": DAILY_LIMIT,
+        },
         "serendipity_enabled": bool(user_context),
     }
+
+    # Add completion object if we've reached the limit
+    if not has_next_page:
+        response["completion"] = {
+            "type": "COMPLETION",
+            "message": "The Garden is Watered.",
+            "subtitle": "You've reached today's limit. Return tomorrow for fresh blooms.",
+            "stats": {
+                "read_count": new_read_count,
+                "daily_limit": DAILY_LIMIT,
+            },
+        }
+
+    return response
 
 
 @router.get("/perspective/{card_id}")
