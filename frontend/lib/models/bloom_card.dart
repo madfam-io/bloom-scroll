@@ -105,8 +105,53 @@ class BloomCard {
     return null;
   }
 
+  /// Parse aesthetic-specific payload
+  AestheticData? get aestheticData {
+    if (sourceType == 'AESTHETIC') {
+      try {
+        return AestheticData.fromJson(dataPayload);
+      } catch (e) {
+        debugPrint('Error parsing aesthetic data: $e');
+        return null;
+      }
+    }
+    return null;
+  }
+
   /// Check if this is an OWID card
   bool get isOwid => sourceType == 'OWID';
+
+  /// Check if this is an aesthetic card
+  bool get isAesthetic => sourceType == 'AESTHETIC';
+}
+
+/// Aesthetic-specific image data payload
+class AestheticData {
+  final String imageUrl;
+  final double aspectRatio;
+  final String dominantColor;
+  final List<String> vibeTags;
+  final int? arenaBlockId;
+
+  AestheticData({
+    required this.imageUrl,
+    required this.aspectRatio,
+    required this.dominantColor,
+    required this.vibeTags,
+    this.arenaBlockId,
+  });
+
+  factory AestheticData.fromJson(Map<String, dynamic> json) {
+    return AestheticData(
+      imageUrl: json['image_url'] as String,
+      aspectRatio: (json['aspect_ratio'] as num?)?.toDouble() ?? 1.0,
+      dominantColor: json['dominant_color'] as String? ?? '#808080',
+      vibeTags: (json['vibe_tags'] as List<dynamic>?)
+          ?.map((e) => e as String)
+          .toList() ?? [],
+      arenaBlockId: json['arena_block_id'] as int?,
+    );
+  }
 }
 
 /// Feed response from API

@@ -185,13 +185,26 @@ flutter build apk --release
 
 **See**: [STORY-002.md](STORY-002.md) for detailed implementation notes
 
+### ✅ STORY-003: Entropy & The Masonry Grid
+**Status**: Completed
+
+- [x] Are.na API connector for aesthetic images
+- [x] Aspect ratio pre-calculation (prevents layout shifts)
+- [x] Masonry grid layout (2-column staggered)
+- [x] Aesthetic card widget with Hero animation
+- [x] Full-screen image viewer with pinch-to-zoom
+- [x] Mixed content feed (charts + images)
+
+**See**: [STORY-003.md](STORY-003.md) for detailed implementation notes
+
 ## Roadmap
 
 ### Phase 1: The "Seed" (MVP)
 - [x] Ingest OWID (Global Stats) ✅ STORY-001
 - [x] Flutter app with native chart rendering ✅ STORY-002
 - [x] Upward scrolling UX ✅ STORY-002
-- [ ] Masonry grid layout
+- [x] Masonry grid layout ✅ STORY-003
+- [x] Aesthetic images from Are.na ✅ STORY-003
 - [ ] Simple keyword-based filtering
 - [ ] RSS-Bridge integration (General News)
 

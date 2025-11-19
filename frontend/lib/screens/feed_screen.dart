@@ -1,11 +1,13 @@
-/// Main feed screen with upward scrolling
+/// Main feed screen with upward scrolling and masonry grid
 library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import '../models/bloom_card.dart';
 import '../providers/api_provider.dart';
 import '../widgets/owid_card.dart';
+import '../widgets/aesthetic_card.dart';
 
 class FeedScreen extends ConsumerWidget {
   const FeedScreen({super.key});
@@ -39,7 +41,6 @@ class FeedScreen extends ConsumerWidget {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
           // Scroll to top (which is bottom in reverse mode)
-          // This would require a ScrollController - implement if needed
         },
         icon: const Icon(Icons.arrow_downward),
         label: const Text('Plant a Seed'),
@@ -78,32 +79,59 @@ class FeedScreen extends ConsumerWidget {
           ),
         ),
 
-        // The upward scrolling feed
+        // The upward scrolling masonry grid
         Expanded(
-          child: ListView.builder(
+          child: CustomScrollView(
             // CRITICAL: reverse: true makes index 0 appear at the bottom
             reverse: true,
             physics: const BouncingScrollPhysics(),
-            itemCount: feedResponse.cards.length + 1, // +1 for end marker
-            itemBuilder: (context, index) {
-              // End of feed marker
-              if (index == feedResponse.cards.length) {
-                return _buildEndMarker(context);
-              }
+            slivers: [
+              // End marker at top
+              SliverToBoxAdapter(
+                child: _buildEndMarker(context),
+              ),
 
-              final card = feedResponse.cards[index];
-
-              // Route to appropriate widget based on source type
-              if (card.isOwid) {
-                return OwidCard(card: card);
-              }
-
-              // Fallback for other card types
-              return _buildGenericCard(context, card);
-            },
+              // Masonry grid of cards
+              SliverMasonryGrid.count(
+                crossAxisCount: 2,
+                mainAxisSpacing: 8,
+                crossAxisSpacing: 8,
+                childCount: feedResponse.cards.length,
+                itemBuilder: (context, index) {
+                  return _buildCardForIndex(context, feedResponse.cards, index);
+                },
+              ),
+            ],
           ),
         ),
       ],
+    );
+  }
+
+  /// Build appropriate card widget with "Robin Hood" layout logic
+  Widget _buildCardForIndex(BuildContext context, List<BloomCard> cards, int index) {
+    final card = cards[index];
+
+    // OWID cards: Full width (span 2 columns)
+    if (card.isOwid) {
+      return _buildFullWidthCard(card);
+    }
+
+    // Aesthetic cards: Single column (natural masonry fit)
+    if (card.isAesthetic) {
+      return AestheticCard(card: card);
+    }
+
+    // Fallback for other card types
+    return _buildGenericCard(context, card);
+  }
+
+  /// Wrap OWID cards to span full width
+  Widget _buildFullWidthCard(BloomCard card) {
+    return SizedBox(
+      // This will be placed in masonry but we want it full width
+      // The parent will be 1 column wide, so we just render OwidCard normally
+      child: OwidCard(card: card),
     );
   }
 
@@ -148,7 +176,7 @@ class FeedScreen extends ConsumerWidget {
 
   Widget _buildGenericCard(BuildContext context, BloomCard card) {
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      margin: const EdgeInsets.all(4),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
