@@ -230,3 +230,43 @@ class BloomAlgorithm:
 
         score = 1.0 - (deviation / max_deviation)
         return max(0.0, min(1.0, score))
+
+    def calculate_reason_tag(
+        self,
+        card: BloomCard,
+        context_vector: Optional[List[float]] = None,
+    ) -> str:
+        """
+        Calculate reason tag explaining why this card was recommended.
+
+        Args:
+            card: The BloomCard
+            context_vector: User's context vector (if available)
+
+        Returns:
+            Reason tag string (e.g., "BLINDSPOT_BREAKER", "DEEP_DIVE")
+        """
+        # No context = recent/popular
+        if not context_vector or not card.embedding:
+            return "RECENT"
+
+        # Calculate distance
+        distance = self.nlp.calculate_cosine_distance(card.embedding, context_vector)
+
+        # Check if there are blindspot tags
+        if card.blindspot_tags and len(card.blindspot_tags) > 0:
+            return "BLINDSPOT_BREAKER"
+
+        # High distance = exploring new territory
+        if distance > 0.6:
+            return "EXPLORE"
+
+        # Medium distance = related but novel
+        if distance > 0.4:
+            return "PERSPECTIVE_SHIFT"
+
+        # Low distance = deep dive into familiar topic
+        if distance < 0.4:
+            return "DEEP_DIVE"
+
+        return "SERENDIPITY"

@@ -59,11 +59,23 @@ async def get_feed(
         limit=limit,
     )
 
+    # Calculate context vector for reason tag generation
+    context_vector = None
+    if user_context:
+        context_vector = await bloom._calculate_user_context(db, user_context)
+
+    # Convert cards to dict with perspective metadata
+    cards_data = []
+    for card in cards:
+        # Calculate reason tag based on serendipity context
+        reason_tag = bloom.calculate_reason_tag(card, context_vector)
+        cards_data.append(card.to_dict(include_meta=True, reason_tag=reason_tag))
+
     return {
         "message": "Feed generated with serendipity scoring" if user_context else "Feed generated (no context)",
         "session_id": "placeholder",
-        "cards": [card.to_dict() for card in cards],
-        "count": len(cards),
+        "cards": cards_data,
+        "count": len(cards_data),
         "serendipity_enabled": bool(user_context),
     }
 

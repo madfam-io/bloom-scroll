@@ -49,6 +49,51 @@ class ChartPoint {
   ChartPoint(this.x, this.y);
 }
 
+/// Perspective metadata for the flip overlay
+class PerspectiveMeta {
+  final double biasScore; // -1.0 (left) to +1.0 (right)
+  final double constructivenessScore; // 0.0 to 100.0
+  final List<String> blindspotTags;
+  final String reasonTag; // BLINDSPOT_BREAKER, DEEP_DIVE, EXPLORE, etc.
+
+  PerspectiveMeta({
+    required this.biasScore,
+    required this.constructivenessScore,
+    required this.blindspotTags,
+    required this.reasonTag,
+  });
+
+  factory PerspectiveMeta.fromJson(Map<String, dynamic> json) {
+    return PerspectiveMeta(
+      biasScore: (json['bias_score'] as num?)?.toDouble() ?? 0.0,
+      constructivenessScore: (json['constructiveness_score'] as num?)?.toDouble() ?? 50.0,
+      blindspotTags: (json['blindspot_tags'] as List<dynamic>?)
+          ?.map((e) => e as String)
+          .toList() ?? [],
+      reasonTag: json['reason_tag'] as String? ?? 'RECENT',
+    );
+  }
+
+  /// Get human-readable reason text for display
+  String get reasonText {
+    switch (reasonTag) {
+      case 'BLINDSPOT_BREAKER':
+        return '🌱 Blindspot Breaker: You rarely read this perspective';
+      case 'DEEP_DIVE':
+        return '⚓ Deep Dive: Connected to your interests';
+      case 'EXPLORE':
+        return '🗺️ Explore: New territory for you';
+      case 'PERSPECTIVE_SHIFT':
+        return '🔄 Perspective Shift: Related but novel';
+      case 'SERENDIPITY':
+        return '✨ Serendipity: Discover something new';
+      case 'RECENT':
+      default:
+        return '📰 Recent: Fresh content';
+    }
+  }
+}
+
 /// Main BloomCard model - polymorphic content container
 class BloomCard {
   final String id;
@@ -57,9 +102,7 @@ class BloomCard {
   final String? summary;
   final String originalUrl;
   final Map<String, dynamic> dataPayload;
-  final double? biasScore;
-  final double? constructivenessScore;
-  final List<String>? blindspotTags;
+  final PerspectiveMeta? meta; // Perspective metadata for flip overlay
   final DateTime createdAt;
 
   BloomCard({
@@ -69,9 +112,7 @@ class BloomCard {
     this.summary,
     required this.originalUrl,
     required this.dataPayload,
-    this.biasScore,
-    this.constructivenessScore,
-    this.blindspotTags,
+    this.meta,
     required this.createdAt,
   });
 
@@ -83,14 +124,17 @@ class BloomCard {
       summary: json['summary'] as String?,
       originalUrl: json['original_url'] as String,
       dataPayload: json['data_payload'] as Map<String, dynamic>,
-      biasScore: (json['bias_score'] as num?)?.toDouble(),
-      constructivenessScore: (json['constructiveness_score'] as num?)?.toDouble(),
-      blindspotTags: (json['blindspot_tags'] as List<dynamic>?)
-          ?.map((e) => e as String)
-          .toList(),
+      meta: json['meta'] != null
+          ? PerspectiveMeta.fromJson(json['meta'] as Map<String, dynamic>)
+          : null,
       createdAt: DateTime.parse(json['created_at'] as String),
     );
   }
+
+  // Legacy accessors for backward compatibility
+  double? get biasScore => meta?.biasScore;
+  double? get constructivenessScore => meta?.constructivenessScore;
+  List<String>? get blindspotTags => meta?.blindspotTags;
 
   /// Parse OWID-specific payload
   OwidChartData? get owidData {

@@ -75,17 +75,34 @@ class BloomCard(Base):
     def __repr__(self) -> str:
         return f"<BloomCard(id={self.id}, source={self.source_type}, title='{self.title[:50]}...')>"
 
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary for API responses."""
-        return {
+    def to_dict(self, include_meta: bool = True, reason_tag: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Convert to dictionary for API responses.
+
+        Args:
+            include_meta: Include perspective metadata (bias, constructiveness, reason)
+            reason_tag: Serendipity reason tag (e.g., "BLINDSPOT_BREAKER")
+
+        Returns:
+            Dictionary representation for API
+        """
+        data = {
             "id": str(self.id),
             "source_type": self.source_type,
             "title": self.title,
             "summary": self.summary,
             "original_url": self.original_url,
             "data_payload": self.data_payload,
-            "bias_score": self.bias_score,
-            "constructiveness_score": self.constructiveness_score,
-            "blindspot_tags": self.blindspot_tags,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
+
+        # Include perspective metadata for frontend flip overlay
+        if include_meta:
+            data["meta"] = {
+                "bias_score": self.bias_score if self.bias_score is not None else 0.0,
+                "constructiveness_score": self.constructiveness_score if self.constructiveness_score is not None else 50.0,
+                "blindspot_tags": self.blindspot_tags or [],
+                "reason_tag": reason_tag or "RECENT",  # Default to recent if no serendipity context
+            }
+
+        return data
