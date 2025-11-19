@@ -1,0 +1,25 @@
+# Environment files
+.env
+.env.local
+
+# Data directories (if using local bind mounts)
+data/
+volumes/
+
+# Logs
+logs/
+*.log
+
+# Backups
+backups/
+backup*.sql
+dump*.sql
+*.dump
+
+# RSS-Bridge config
+rss-bridge-config/
+
+# Init scripts (sensitive data only)
+# Note: System init scripts like extension setup are kept in git
+init-scripts/*_sensitive.sql
+init-scripts/*_secret.sql

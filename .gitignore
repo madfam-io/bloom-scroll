@@ -1,0 +1,48 @@
+# Project-wide ignores
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Documentation builds
+docs/_build/
+docs/.doctrees/
+
+# Coverage reports
+coverage/
+.coverage
+htmlcov/
+
+# Backups
+*.bak
+*.backup
+*.sql
+
+# Secrets
+*.pem
+*.key
+*.cert
+credentials.json
+secrets.yaml
