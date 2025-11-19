@@ -4,6 +4,7 @@ library;
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import '../models/bloom_card.dart';
+import '../theme/design_tokens.dart';
 
 class OwidCard extends StatefulWidget {
   final BloomCard card;
@@ -33,39 +34,31 @@ class _OwidCardState extends State<OwidCard> {
     }
 
     return Card(
-      margin: const EdgeInsets.all(4),
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      margin: const EdgeInsets.all(BloomSpacing.xs),
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(BloomSpacing.screenPadding),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Title
+            // Title (Libre Baskerville headings)
             Text(
               widget.card.title,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+              style: Theme.of(context).textTheme.titleLarge,
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: BloomSpacing.xs),
 
             // Source badge
             Chip(
               label: const Text('OWID'),
-              backgroundColor: Colors.green.shade50,
-              labelStyle: TextStyle(
-                color: Colors.green.shade700,
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
+              backgroundColor: BloomColors.surfaceBg,
+              labelStyle: BloomTypography.caption.copyWith(
+                color: BloomColors.growthGreen,
               ),
               visualDensity: VisualDensity.compact,
             ),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: BloomSpacing.screenPadding),
 
             // Chart
             SizedBox(
@@ -73,15 +66,15 @@ class _OwidCardState extends State<OwidCard> {
               child: _buildChart(dataPoints, owidData),
             ),
 
-            const SizedBox(height: 16),
+            const SizedBox(height: BloomSpacing.md),
 
-            // Summary info
+            // Summary info (Inter body text)
             if (widget.card.summary != null)
               Text(
                 widget.card.summary!,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.grey.shade700,
-                    ),
+                style: BloomTypography.bodyMedium.copyWith(
+                  color: BloomColors.inkSecondary,
+                ),
               ),
           ],
         ),
@@ -92,23 +85,11 @@ class _OwidCardState extends State<OwidCard> {
   Widget _buildChart(List<ChartPoint> dataPoints, OwidChartData owidData) {
     return LineChart(
       LineChartData(
-        // Grid and borders - Tufte style (minimal)
-        gridData: FlGridData(
-          show: true,
-          drawVerticalLine: false,
-          horizontalInterval: null,
-          getDrawingHorizontalLine: (value) {
-            return FlLine(
-              color: Colors.grey.shade200,
-              strokeWidth: 1,
-            );
-          },
-        ),
-        borderData: FlBorderData(
-          show: false,
-        ),
+        // Grid and borders - "Paper & Ink" design (no grids, no borders)
+        gridData: FlGridData(show: BloomChartConfig.showGrid),
+        borderData: FlBorderData(show: BloomChartConfig.showBorder),
 
-        // Titles
+        // Titles - Minimal axis labels (Tufte style + Paper & Ink)
         titlesData: FlTitlesData(
           leftTitles: AxisTitles(
             sideTitles: SideTitles(
@@ -117,9 +98,8 @@ class _OwidCardState extends State<OwidCard> {
               getTitlesWidget: (value, meta) {
                 return Text(
                   _formatValue(value, owidData.unit),
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: Colors.grey.shade600,
+                  style: BloomTypography.dataSmall.copyWith(
+                    color: BloomColors.inkTertiary,
                   ),
                 );
               },
@@ -132,12 +112,11 @@ class _OwidCardState extends State<OwidCard> {
               interval: _calculateInterval(owidData.years),
               getTitlesWidget: (value, meta) {
                 return Padding(
-                  padding: const EdgeInsets.only(top: 8.0),
+                  padding: const EdgeInsets.only(top: BloomSpacing.sm),
                   child: Text(
                     value.toInt().toString(),
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Colors.grey.shade600,
+                    style: BloomTypography.dataSmall.copyWith(
+                      color: BloomColors.inkTertiary,
                     ),
                   ),
                 );
@@ -152,7 +131,7 @@ class _OwidCardState extends State<OwidCard> {
           ),
         ),
 
-        // The actual line
+        // The actual line - Drawn in "Ink" color per design tokens
         lineBarsData: [
           LineChartBarData(
             spots: dataPoints
@@ -160,23 +139,25 @@ class _OwidCardState extends State<OwidCard> {
                 .toList(),
             isCurved: true,
             curveSmoothness: 0.3,
-            color: Colors.green.shade600,
-            barWidth: 3,
+            color: BloomChartConfig.lineColor,
+            barWidth: BloomChartConfig.lineWidth,
             isStrokeCapRound: true,
             dotData: FlDotData(
               show: true,
               getDotPainter: (spot, percent, barData, index) {
                 return FlDotCirclePainter(
-                  radius: index == _touchedIndex ? 6 : 3,
-                  color: Colors.white,
+                  radius: index == _touchedIndex
+                      ? BloomChartConfig.touchSpotRadius
+                      : 3,
+                  color: BloomColors.primaryBg,
                   strokeWidth: 2,
-                  strokeColor: Colors.green.shade600,
+                  strokeColor: BloomChartConfig.lineColor,
                 );
               },
             ),
             belowBarData: BarAreaData(
               show: true,
-              color: Colors.green.shade600.withOpacity(0.1),
+              color: BloomChartConfig.fillColor, // Growth green with 10% opacity
             ),
           ),
         ],
@@ -200,17 +181,17 @@ class _OwidCardState extends State<OwidCard> {
             return spotIndexes.map((index) {
               return TouchedSpotIndicatorData(
                 FlLine(
-                  color: Colors.green.shade600,
+                  color: BloomChartConfig.touchColor, // bloom_red
                   strokeWidth: 2,
                   dashArray: [5, 5],
                 ),
                 FlDotData(
                   getDotPainter: (spot, percent, barData, index) {
                     return FlDotCirclePainter(
-                      radius: 6,
-                      color: Colors.white,
+                      radius: BloomChartConfig.touchSpotRadius,
+                      color: BloomColors.primaryBg,
                       strokeWidth: 3,
-                      strokeColor: Colors.green.shade600,
+                      strokeColor: BloomChartConfig.touchColor,
                     );
                   },
                 ),
@@ -218,19 +199,20 @@ class _OwidCardState extends State<OwidCard> {
             }).toList();
           },
           touchTooltipData: LineTouchTooltipData(
-            getTooltipColor: (touchedSpot) => Colors.green.shade700,
-            tooltipRoundedRadius: 8,
-            tooltipPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            getTooltipColor: (touchedSpot) => BloomChartConfig.touchColor,
+            tooltipRoundedRadius: BloomSpacing.cardRadius,
+            tooltipPadding: const EdgeInsets.symmetric(
+              horizontal: BloomSpacing.sm,
+              vertical: BloomSpacing.xs,
+            ),
             getTooltipItems: (List<LineBarSpot> touchedSpots) {
               return touchedSpots.map((LineBarSpot touchedSpot) {
                 final year = touchedSpot.x.toInt();
                 final value = touchedSpot.y;
                 return LineTooltipItem(
                   '$year\n${_formatValue(value, owidData.unit)}',
-                  const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
+                  BloomTypography.dataMedium.copyWith(
+                    color: BloomColors.primaryBg,
                   ),
                 );
               }).toList();
@@ -243,9 +225,9 @@ class _OwidCardState extends State<OwidCard> {
 
   Widget _buildErrorCard(String message) {
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      margin: const EdgeInsets.all(BloomSpacing.xs),
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(BloomSpacing.screenPadding),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -253,10 +235,12 @@ class _OwidCardState extends State<OwidCard> {
               widget.card.title,
               style: Theme.of(context).textTheme.titleLarge,
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: BloomSpacing.sm),
             Text(
               message,
-              style: TextStyle(color: Colors.red.shade700),
+              style: BloomTypography.bodyMedium.copyWith(
+                color: BloomColors.bloomRed,
+              ),
             ),
           ],
         ),

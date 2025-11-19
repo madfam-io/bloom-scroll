@@ -4,6 +4,7 @@ library;
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import '../models/bloom_card.dart';
+import '../theme/design_tokens.dart';
 
 class AestheticCard extends StatelessWidget {
   final BloomCard card;
@@ -33,12 +34,8 @@ class AestheticCard extends StatelessWidget {
         );
       },
       child: Card(
-        margin: const EdgeInsets.all(4),
+        margin: const EdgeInsets.all(BloomSpacing.xs),
         clipBehavior: Clip.antiAlias,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-        elevation: 2,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
@@ -60,11 +57,11 @@ class AestheticCard extends StatelessWidget {
                     ),
                   ),
                   errorWidget: (context, url, error) => Container(
-                    color: Colors.grey.shade200,
+                    color: BloomColors.skeletonBg,
                     child: const Icon(
                       Icons.broken_image,
                       size: 48,
-                      color: Colors.grey,
+                      color: BloomColors.inkTertiary,
                     ),
                   ),
                 ),
@@ -73,27 +70,21 @@ class AestheticCard extends StatelessWidget {
 
             // Metadata
             Padding(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(BloomSpacing.sm),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Vibe tags
                   if (aestheticData.vibeTags.isNotEmpty)
                     Wrap(
-                      spacing: 4,
-                      runSpacing: 4,
+                      spacing: BloomSpacing.xs,
+                      runSpacing: BloomSpacing.xs,
                       children: aestheticData.vibeTags.take(2).map((tag) {
                         return Chip(
                           label: Text(tag),
-                          backgroundColor: _parseColor(aestheticData.dominantColor)
-                              .withOpacity(0.2),
-                          labelStyle: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
-                            color: _parseColor(aestheticData.dominantColor)
-                                .computeLuminance() > 0.5
-                                ? Colors.black87
-                                : Colors.white,
+                          backgroundColor: BloomColors.surfaceBg,
+                          labelStyle: BloomTypography.caption.copyWith(
+                            color: BloomColors.inkSecondary,
                           ),
                           visualDensity: VisualDensity.compact,
                           padding: EdgeInsets.zero,
@@ -101,14 +92,14 @@ class AestheticCard extends StatelessWidget {
                       }).toList(),
                     ),
 
-                  const SizedBox(height: 8),
+                  const SizedBox(height: BloomSpacing.sm),
 
                   // Title (truncated)
                   Text(
                     card.title,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
+                    style: BloomTypography.bodyMedium.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -123,20 +114,22 @@ class AestheticCard extends StatelessWidget {
 
   Widget _buildErrorCard(BuildContext context, String message) {
     return Card(
-      margin: const EdgeInsets.all(4),
+      margin: const EdgeInsets.all(BloomSpacing.xs),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(BloomSpacing.md),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               card.title,
-              style: Theme.of(context).textTheme.bodyMedium,
+              style: BloomTypography.bodyMedium,
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: BloomSpacing.sm),
             Text(
               message,
-              style: TextStyle(color: Colors.red.shade700),
+              style: BloomTypography.bodyMedium.copyWith(
+                color: BloomColors.bloomRed,
+              ),
             ),
           ],
         ),
@@ -149,7 +142,7 @@ class AestheticCard extends StatelessWidget {
       final hex = hexColor.replaceAll('#', '');
       return Color(int.parse('FF$hex', radix: 16));
     } catch (e) {
-      return Colors.grey;
+      return BloomColors.inkTertiary;
     }
   }
 }

@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'screens/feed_screen.dart';
+import 'theme/bloom_theme.dart';
 
 void main() {
+  // Set system UI overlay style (status bar, navigation bar)
+  SystemChrome.setSystemUIOverlayStyle(BloomTheme.systemUiOverlayStyle);
+
   runApp(
     // Wrap app in ProviderScope for Riverpod
     const ProviderScope(
@@ -19,28 +24,8 @@ class BloomScrollApp extends StatelessWidget {
     return MaterialApp(
       title: 'Bloom Scroll',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.green,
-          brightness: Brightness.light,
-        ),
-        useMaterial3: true,
-        fontFamily: 'Inter',
-        cardTheme: CardTheme(
-          elevation: 2,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-        ),
-      ),
-      darkTheme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.green,
-          brightness: Brightness.dark,
-        ),
-        useMaterial3: true,
-        fontFamily: 'Inter',
-      ),
+      // Apply "Paper & Ink" design system
+      theme: BloomTheme.lightTheme,
       home: const FeedScreen(),
     );
   }
