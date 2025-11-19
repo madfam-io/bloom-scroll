@@ -1,0 +1,7 @@
+{
+  "image_url": "not-a-url",
+  "aspect_ratio": "should-be-float",
+  "dominant_color": null,
+  "vibe_tags": "should-be-array",
+  "arena_block_id": -1
+}
