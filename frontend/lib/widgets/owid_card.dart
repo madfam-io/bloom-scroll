@@ -5,6 +5,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import '../models/bloom_card.dart';
 import '../theme/design_tokens.dart';
+import 'perspective/flippable_card.dart';
 
 class OwidCard extends StatefulWidget {
   final BloomCard card;
@@ -33,11 +34,13 @@ class _OwidCardState extends State<OwidCard> {
       return _buildErrorCard('No data available');
     }
 
-    return Card(
-      margin: const EdgeInsets.all(BloomSpacing.xs),
-      child: Padding(
-        padding: const EdgeInsets.all(BloomSpacing.screenPadding),
-        child: Column(
+    return FlippableCard(
+      card: widget.card,
+      front: Card(
+        margin: const EdgeInsets.all(BloomSpacing.xs),
+        child: Padding(
+          padding: const EdgeInsets.all(BloomSpacing.screenPadding),
+          child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -79,6 +82,7 @@ class _OwidCardState extends State<OwidCard> {
           ],
         ),
       ),
+    ),
     );
   }
 

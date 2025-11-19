@@ -5,6 +5,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import '../models/bloom_card.dart';
 import '../theme/design_tokens.dart';
+import 'perspective/flippable_card.dart';
 
 class AestheticCard extends StatelessWidget {
   final BloomCard card;
@@ -21,19 +22,21 @@ class AestheticCard extends StatelessWidget {
       return _buildErrorCard(context, 'Invalid aesthetic data');
     }
 
-    return GestureDetector(
-      onTap: () {
-        // Open full-screen view with Hero animation
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (context) => _FullScreenImage(
-              card: card,
-              aestheticData: aestheticData,
+    return FlippableCard(
+      card: card,
+      front: GestureDetector(
+        onTap: () {
+          // Open full-screen view with Hero animation
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => _FullScreenImage(
+                card: card,
+                aestheticData: aestheticData,
+              ),
             ),
-          ),
-        );
-      },
-      child: Card(
+          );
+        },
+        child: Card(
         margin: const EdgeInsets.all(BloomSpacing.xs),
         clipBehavior: Clip.antiAlias,
         child: Column(
@@ -109,6 +112,7 @@ class AestheticCard extends StatelessWidget {
           ],
         ),
       ),
+    ),
     );
   }
 
