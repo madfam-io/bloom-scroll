@@ -1,5 +1,5 @@
 # Multi-stage build for Bloom Scroll Backend
-FROM python:3.11-slim as builder
+FROM python:3.14-slim as builder
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
@@ -22,7 +22,7 @@ RUN poetry config virtualenvs.create false \
     && poetry install --no-dev --no-interaction --no-ansi
 
 # Production stage
-FROM python:3.11-slim
+FROM python:3.14-slim
 
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y \
