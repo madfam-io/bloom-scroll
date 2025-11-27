@@ -34,6 +34,12 @@ class Settings(BaseSettings):
     # API Keys
     OPENALEX_EMAIL: str = ""
 
+    # Janua Authentication
+    JANUA_API_URL: str = "http://localhost:8000/api/v1"
+    JANUA_JWT_SECRET: str = "dev-shared-janua-secret-32chars"
+    JANUA_JWT_ALGORITHM: str = "HS256"
+    AUTH_ENABLED: bool = True
+
     # Model Configuration
     EMBEDDING_MODEL: str = "sentence-transformers/all-MiniLM-L6-v2"
     EMBEDDING_DIMENSION: int = 384
