@@ -1,0 +1,163 @@
+# Bloom Scroll - Enclii Deployment Configuration
+# Slow Web Content Aggregator
+
+apiVersion: enclii.dev/v1
+kind: Service
+metadata:
+  name: bloom-scroll
+  project: madfam-platform
+  description: Perspective-driven content aggregator optimizing for serendipity over engagement
+
+spec:
+  services:
+    # FastAPI Backend
+    - name: bloom-api
+      build:
+        type: dockerfile
+        dockerfile: backend/Dockerfile
+        context: .
+        source:
+          git:
+            repository: https://github.com/madfam-io/bloom-scroll
+            branch: main
+            autoDeploy: true
+
+      runtime:
+        port: 5200
+        replicas: 2
+        resources:
+          requests:
+            cpu: "200m"
+            memory: "512Mi"
+          limits:
+            cpu: "1000m"
+            memory: "2Gi"
+
+        healthCheck: /api/health
+        readinessProbe:
+          path: /api/health
+          initialDelaySeconds: 20
+          periodSeconds: 10
+        livenessProbe:
+          path: /api/health
+          initialDelaySeconds: 40
+          periodSeconds: 15
+
+      env:
+        - name: PYTHON_ENV
+          value: production
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: bloom-secrets
+              key: database-url
+        - name: REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: bloom-secrets
+              key: redis-url
+        - name: EMBEDDING_MODEL
+          value: all-MiniLM-L6-v2
+
+      routes:
+        - host: api.bloomscroll.app
+          path: /
+          tls: true
+
+    # Flutter Web Frontend
+    - name: bloom-web
+      build:
+        type: dockerfile
+        dockerfile: frontend/Dockerfile
+        context: .
+
+      runtime:
+        port: 80
+        replicas: 2
+        resources:
+          requests:
+            cpu: "50m"
+            memory: "64Mi"
+          limits:
+            cpu: "200m"
+            memory: "128Mi"
+
+        healthCheck: /
+
+      routes:
+        - host: bloomscroll.app
+          path: /
+          tls: true
+        - host: www.bloomscroll.app
+          path: /
+          tls: true
+          redirect: bloomscroll.app
+
+  # Content Aggregation Worker
+  workers:
+    - name: bloom-aggregator
+      build:
+        type: dockerfile
+        dockerfile: backend/Dockerfile.worker
+        context: .
+
+      runtime:
+        replicas: 1
+        resources:
+          requests:
+            cpu: "200m"
+            memory: "512Mi"
+          limits:
+            cpu: "500m"
+            memory: "1Gi"
+
+      env:
+        - name: WORKER_TYPE
+          value: aggregator
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: bloom-secrets
+              key: database-url
+        - name: REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: bloom-secrets
+              key: redis-url
+
+  # Daily curation job
+  jobs:
+    - name: bloom-daily-curation
+      schedule: "0 5 * * *"  # 5 AM daily
+      build:
+        type: dockerfile
+        dockerfile: backend/Dockerfile.curation
+        context: .
+
+      resources:
+        requests:
+          cpu: "500m"
+          memory: "1Gi"
+        limits:
+          cpu: "1000m"
+          memory: "2Gi"
+
+      env:
+        - name: JOB_TYPE
+          value: daily-curation
+        - name: DAILY_FEED_LIMIT
+          value: "20"
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: bloom-secrets
+              key: database-url
+
+  autoscaling:
+    minReplicas: 2
+    maxReplicas: 6
+    targetCPUUtilizationPercentage: 70
+
+  caching:
+    enabled: true
+    ttl: 86400  # 24 hours for daily feeds

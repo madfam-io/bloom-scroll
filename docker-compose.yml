@@ -1,0 +1,87 @@
+version: "3.8"
+
+services:
+  # Bloom Scroll API (FastAPI)
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: development
+    ports:
+      - "5200:5200"
+    environment:
+      - PYTHON_ENV=development
+      - PORT=5200
+      - DATABASE_URL=postgresql://bloom:bloom_dev@postgres:5432/bloom_dev
+      - REDIS_URL=redis://redis:6379/0
+      - EMBEDDING_MODEL=all-MiniLM-L6-v2
+      - LOG_LEVEL=DEBUG
+    volumes:
+      - ./backend:/app
+      - /app/__pycache__
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - bloom-network
+
+  # Content Aggregator Worker
+  aggregator:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.worker
+    environment:
+      - WORKER_TYPE=aggregator
+      - DATABASE_URL=postgresql://bloom:bloom_dev@postgres:5432/bloom_dev
+      - REDIS_URL=redis://redis:6379/0
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - api
+      - redis
+    networks:
+      - bloom-network
+
+  # PostgreSQL Database with pgvector
+  postgres:
+    image: pgvector/pgvector:pg15
+    ports:
+      - "5434:5432"
+    environment:
+      - POSTGRES_USER=bloom
+      - POSTGRES_PASSWORD=bloom_dev
+      - POSTGRES_DB=bloom_dev
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bloom -d bloom_dev"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - bloom-network
+
+  # Redis
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6381:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - bloom-network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  bloom-network:
+    driver: bridge
